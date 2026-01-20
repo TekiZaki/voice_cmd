@@ -7,6 +7,10 @@ import sounddevice as sd
 import tensorflow as tf
 from sklearn.preprocessing import LabelEncoder
 import sys
+import pyautogui
+
+# Set pyautogui safety settings
+pyautogui.FAILSAFE = True
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -69,9 +73,24 @@ def extract_features(audio):
     return mfcc.T
 
 def execute_action(label, command_map):
-    """Opens the mapped application shortcut."""
+    """Opens the mapped application shortcut or performs keyboard action."""
     if label in command_map:
-        app_name = command_map[label]
+        action = command_map[label]
+        
+        # Check for keyboard shortcut prefix
+        if action.startswith("key:"):
+            keys_str = action[4:].strip() # Remove 'key:' prefix
+            keys = keys_str.split('+')    # Split 'ctrl+a' into ['ctrl', 'a']
+            
+            print(f"⌨️ [AUTO] Keyboard Shortcut: {keys_str}")
+            try:
+                pyautogui.hotkey(*keys)
+            except Exception as e:
+                print(f"❌ Failed to execute keyboard shortcut: {e}")
+            return
+
+        # Default behavior: Open application shortcut
+        app_name = action
         app_path = os.path.join(APPS_PATH, app_name)
         
         if os.path.exists(app_path):
@@ -83,7 +102,7 @@ def execute_action(label, command_map):
         else:
             print(f"⚠️ Shortcut file not found: {app_path}")
     else:
-        print(f"ℹ️ Command '{label}' recognized but has no shortcut mapping.")
+        print(f"ℹ️ Command '{label}' recognized but has no mapping.")
 
 def main():
     # 1. Initialize

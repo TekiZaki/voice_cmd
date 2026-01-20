@@ -4,3 +4,4 @@ matplotlib
 librosa
 tensorflow
 scipy
+pyautogui

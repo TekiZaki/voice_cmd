@@ -1,4 +1,7 @@
 {
     "buka_wa": "WhatsApp Web.lnk",
-    "buka_note_win_10": "note.exe - Shortcut.lnk"
+    "buka_note_win_10": "note.exe - Shortcut.lnk",
+    "buka_mc-edge": "Microsoft Edge.lnk",
+    "select_all": "key:ctrl+a",
+    "close": "key:ctrl+w"
 }

@@ -132,7 +132,7 @@ class VoiceCollectorGUI:
         self.label_entry = ttk.Entry(config_frame, textvariable=self.label_var)
         self.label_entry.pack(fill=tk.X, pady=(5, 10))
 
-        ttk.Label(config_frame, text="Target Shortcut (.lnk):").pack(anchor=tk.W)
+        ttk.Label(config_frame, text="Target Shortcut or Keyboard Action:").pack(anchor=tk.W)
         shortcut_row = ttk.Frame(config_frame)
         shortcut_row.pack(fill=tk.X, pady=(5, 10))
         
@@ -140,8 +140,16 @@ class VoiceCollectorGUI:
         self.shortcut_entry = ttk.Entry(shortcut_row, textvariable=self.shortcut_var)
         self.shortcut_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
         
-        btn_browse = ttk.Button(shortcut_row, text="Browse", command=self.browse_shortcut, width=8)
-        btn_browse.pack(side=tk.RIGHT)
+        self.btn_browse = ttk.Button(shortcut_row, text="Browse", command=self.browse_shortcut, width=8)
+        self.btn_browse.pack(side=tk.RIGHT)
+
+        # Action Type Toggle
+        type_frame = ttk.Frame(config_frame)
+        type_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        self.action_type = tk.StringVar(value="app")
+        ttk.Radiobutton(type_frame, text="Application (.lnk)", variable=self.action_type, value="app", command=self.update_ui_mode).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Radiobutton(type_frame, text="Keyboard Action (key:)", variable=self.action_type, value="key", command=self.update_ui_mode).pack(side=tk.LEFT)
 
         # Waveform Canvas
         ttk.Label(main_container, text="Live Monitor:").pack(anchor=tk.W, pady=(10, 0))
@@ -178,13 +186,25 @@ class VoiceCollectorGUI:
         if filename:
             self.shortcut_var.set(os.path.basename(filename))
 
+    def update_ui_mode(self):
+        """Toggle between app shortcut and keyboard shortcut mode."""
+        if self.action_type.get() == "key":
+            self.btn_browse.configure(state="disabled")
+            if not self.shortcut_var.get().startswith("key:"):
+                # Suggest a prefix or clear if it was an app shortcut
+                self.shortcut_var.set("key:ctrl+a") 
+        else:
+            self.btn_browse.configure(state="normal")
+            if self.shortcut_var.get().startswith("key:"):
+                self.shortcut_var.set("")
+
     def toggle_recording(self):
         if not self.recorder.is_recording:
             label = self.label_var.get().strip()
             shortcut = self.shortcut_var.get().strip()
             
             if not label or not shortcut:
-                messagebox.showwarning("Warning", "Please provide a Command Label and Shortcut Target.")
+                messagebox.showwarning("Warning", "Please provide a Command Label and Shortcut/Action target.")
                 return
             
             # Start

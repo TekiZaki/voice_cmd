@@ -3,5 +3,15 @@
     "buka_note_win_10": "note.exe - Shortcut.lnk",
     "buka_mc-edge": "Microsoft Edge.lnk",
     "select_all": "key:ctrl+a",
-    "close": "key:ctrl+w"
+    "close": "key:ctrl+w",
+    "tab_down": "key:ctrl+pagedown",
+    "tab_up": "key:ctrl+pageup",
+    "atas": "key:up",
+    "kiri": "key:left",
+    "kanan": "key:right",
+    "bawah": "key:down",
+    "percepat": "key:alt+]",
+    "perlambat": "key:alt+[",
+    "searching": "key:ctrl+e",
+    "tab": "key:tab"
 }

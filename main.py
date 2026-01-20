@@ -1,0 +1,164 @@
+import os
+import json
+import time
+import numpy as np
+import librosa
+import sounddevice as sd
+import tensorflow as tf
+from sklearn.preprocessing import LabelEncoder
+import sys
+
+# --- CONFIGURATION ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODELS_PATH = os.path.join(BASE_DIR, 'models')
+COMMAND_MAP_PATH = os.path.join(BASE_DIR, 'command_map.json')
+APPS_PATH = os.path.join(BASE_DIR, 'apps')
+
+# Audio Specs (Must match model.py)
+SAMPLE_RATE = 44100
+DURATION = 1.0  # seconds
+N_MFCC = 40
+
+# Detection Settings
+RMS_THRESHOLD = 0.05       # Trigger threshold (increase if too sensitive)
+CONFIDENCE_THRESHOLD = 0.8 # Minimum probability to execute
+COOLDOWN_PERIOD = 1.5      # Seconds to wait after execution
+
+def load_resources():
+    print("📦 Loading AI models and configurations...")
+    try:
+        model_path = os.path.join(MODELS_PATH, 'voice_model.h5')
+        le_path = os.path.join(MODELS_PATH, 'label_encoder.npy')
+        
+        if not os.path.exists(model_path) or not os.path.exists(le_path):
+            print(f"❌ Error: Model files not found in {MODELS_PATH}")
+            print("Please run train-model.py first.")
+            sys.exit(1)
+            
+        # Load TensorFlow model
+        model = tf.keras.models.load_model(model_path)
+        
+        # Load and reconstruct Label Encoder
+        le = LabelEncoder()
+        le.classes_ = np.load(le_path, allow_pickle=True)
+        
+        # Load command to shortcut mapping
+        if not os.path.exists(COMMAND_MAP_PATH):
+            print(f"❌ Error: {COMMAND_MAP_PATH} not found.")
+            sys.exit(1)
+            
+        with open(COMMAND_MAP_PATH, 'r') as f:
+            command_map = json.load(f)
+            
+        return model, le, command_map
+    except Exception as e:
+        print(f"❌ Initialization Error: {e}")
+        sys.exit(1)
+
+def extract_features(audio):
+    """Transform raw audio to MFCC features for the model."""
+    # Ensure audio is exactly DURATION long
+    target_samples = int(SAMPLE_RATE * DURATION)
+    if len(audio) < target_samples:
+        audio = np.pad(audio, (0, target_samples - len(audio)))
+    else:
+        audio = audio[:target_samples]
+        
+    # Extract MFCC
+    mfcc = librosa.feature.mfcc(y=audio, sr=SAMPLE_RATE, n_mfcc=N_MFCC)
+    return mfcc.T
+
+def execute_action(label, command_map):
+    """Opens the mapped application shortcut."""
+    if label in command_map:
+        app_name = command_map[label]
+        app_path = os.path.join(APPS_PATH, app_name)
+        
+        if os.path.exists(app_path):
+            print(f"🚀 [AUTO] Opening application: {app_name}")
+            try:
+                os.startfile(app_path)
+            except Exception as e:
+                print(f"❌ Failed to open shortcut: {e}")
+        else:
+            print(f"⚠️ Shortcut file not found: {app_path}")
+    else:
+        print(f"ℹ️ Command '{label}' recognized but has no shortcut mapping.")
+
+def main():
+    # 1. Initialize
+    model, le, command_map = load_resources()
+    
+    print(f"✅ Ready! Detected Commands: {list(le.classes_)}")
+    print("\n" + "═"*50)
+    print(" 🎤 VOICE ASSISTANT IS LISTENING...")
+    print(" 🔊 Threshold: {:.2f} | Confidence Req: {:.1f}%".format(RMS_THRESHOLD, CONFIDENCE_THRESHOLD*100))
+    print(" Press Ctrl+C to exit.")
+    print("═"*50 + "\n")
+
+    # 2. Setup audio buffer
+    buffer_samples = int(DURATION * SAMPLE_RATE)
+    audio_buffer = np.zeros(buffer_samples)
+    last_action_time = 0
+    
+    def audio_callback(indata, frames, time_info, status):
+        """Streaming callback to fill the rolling buffer."""
+        nonlocal audio_buffer
+        if status:
+            print(f"Audio Status: {status}")
+        # Shift buffer and add new data
+        audio_buffer = np.roll(audio_buffer, -frames)
+        audio_buffer[-frames:] = indata.flatten()
+
+    # 3. Prediction loop
+    try:
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=1, callback=audio_callback):
+            while True:
+                current_time = time.time()
+                
+                # Check cooldown
+                if current_time - last_action_time < COOLDOWN_PERIOD:
+                    time.sleep(0.1)
+                    continue
+
+                # Analyze the last 150ms for voice activity
+                check_len = int(0.15 * SAMPLE_RATE)
+                rms = np.sqrt(np.mean(audio_buffer[-check_len:]**2))
+                
+                if rms > RMS_THRESHOLD:
+                    print(f"✨ Sound Detected (RMS: {rms:.3f}) - Analyzing...")
+                    
+                    # Wait briefly for the word to complete in the buffer
+                    time.sleep(0.6) 
+                    
+                    # Snapshot the buffer for inference
+                    snapshot = audio_buffer.copy()
+                    
+                    # Extract MFCC & Predict
+                    features = extract_features(snapshot)
+                    input_data = features[np.newaxis, ...] # Add batch dim (1, Time, MFCC)
+                    
+                    predictions = model.predict(input_data, verbose=0)
+                    top_idx = np.argmax(predictions[0])
+                    confidence = predictions[0][top_idx]
+                    label = le.classes_[top_idx]
+                    
+                    if label != "background" and confidence >= CONFIDENCE_THRESHOLD:
+                        print(f"🎯 MATCH: {label.upper()} ({confidence*100:.1f}%)")
+                        execute_action(label, command_map)
+                        last_action_time = time.time()
+                    elif label == "background":
+                        # Ignore background noise
+                        pass
+                    else:
+                        print(f"❓ Low confidence: {label} ({confidence*100:.1f}%)")
+                
+                time.sleep(0.05) # Loop breathing room
+                
+    except KeyboardInterrupt:
+        print("\n\n👋 Stopping Voice Assistant. Goodbye!")
+    except Exception as e:
+        print(f"\n💥 Fatal Runtime Error: {e}")
+
+if __name__ == "__main__":
+    main()

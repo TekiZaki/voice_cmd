@@ -115,6 +115,10 @@ def execute_action(label, command_map):
     if label in command_map:
         action = command_map[label]
         
+        # Ignore empty actions or 'none' (used for state-switching commands)
+        if not action or action.lower() == "none":
+            return
+        
         # Check for keyboard shortcut prefix
         if action.startswith("key:"):
             keys_str = action[4:].strip() # Remove 'key:' prefix

@@ -13,5 +13,7 @@
     "percepat": "key:alt+]",
     "perlambat": "key:alt+[",
     "searching": "key:ctrl+e",
-    "tab": "key:tab"
+    "tab": "key:tab",
+    "hello_voicecmd": "none",
+    "sleep_cmd": "none"
 }

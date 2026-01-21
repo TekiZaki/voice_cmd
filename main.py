@@ -10,6 +10,7 @@ import sys
 import pyautogui
 import ctypes
 import threading
+from audio_utils import enhance_audio
 
 # Set pyautogui safety settings
 pyautogui.FAILSAFE = True
@@ -83,6 +84,9 @@ def load_resources():
 
 def extract_features(audio):
     """Transform raw audio to MFCC features - MUST MATCH model.py!"""
+    # --- ENHANCEMENT ---
+    audio = enhance_audio(audio, SAMPLE_RATE)
+
     # Ensure audio is exactly DURATION long
     target_samples = int(SAMPLE_RATE * DURATION)
     if len(audio) < target_samples:
@@ -90,7 +94,7 @@ def extract_features(audio):
     else:
         audio = audio[:target_samples]
     
-    # Normalize audio
+    # Normalize audio (safety, enhance_audio already normalizes)
     if np.max(np.abs(audio)) > 0:
         audio = audio / np.max(np.abs(audio))
     

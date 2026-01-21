@@ -8,6 +8,7 @@ import sounddevice as sd
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
+from audio_utils import enhance_audio
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +62,12 @@ class AudioRecorder:
             return False
 
         # Convert list of arrays to a single flat array
-        audio_data = np.concatenate(self.frames, axis=0)
+        audio_data = np.concatenate(self.frames, axis=0).flatten()
+        
+        # --- ENHANCEMENT ---
+        print("🪄 Enhancing audio quality...")
+        audio_data = enhance_audio(audio_data, SAMPLE_RATE)
+
         # Convert to 16-bit PCM
         audio_data_int16 = (audio_data * 32767).astype(np.int16)
 

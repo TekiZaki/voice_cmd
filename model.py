@@ -6,6 +6,7 @@ from tensorflow.keras import layers, models
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from audio_utils import enhance_audio
 
 # Configuration
 DATASET_PATH = 'dataset'
@@ -42,17 +43,21 @@ def load_data():
             
             try:
                 # Load audio
-                audio, _ = librosa.load(file_path, sr=SAMPLE_RATE, duration=DURATION)
+                audio, _ = librosa.load(file_path, sr=SAMPLE_RATE)
                 
-                # Normalize audio
+                # --- ENHANCEMENT ---
+                audio = enhance_audio(audio, SAMPLE_RATE)
+                
+                # Ensure exactly DURATION
+                target_samples = int(SAMPLE_RATE * DURATION)
+                if len(audio) < target_samples:
+                    audio = np.pad(audio, (0, target_samples - len(audio)))
+                else:
+                    audio = audio[:target_samples]
+                
+                # Normalize audio (safety)
                 if np.max(np.abs(audio)) > 0:
                     audio = audio / np.max(np.abs(audio))
-                
-                # Pad if too short
-                if len(audio) < SAMPLE_RATE * DURATION:
-                    audio = np.pad(audio, (0, int(SAMPLE_RATE * DURATION) - len(audio)))
-                else:
-                    audio = audio[:int(SAMPLE_RATE * DURATION)]
                 
                 # Original Sample
                 mfcc = extract_mfcc(audio)

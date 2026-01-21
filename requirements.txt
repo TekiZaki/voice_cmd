@@ -5,3 +5,4 @@ librosa
 tensorflow
 scipy
 pyautogui
+noisereduce

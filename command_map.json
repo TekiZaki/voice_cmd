@@ -15,5 +15,12 @@
     "searching": "key:ctrl+e",
     "tab": "key:tab",
     "hello_voicecmd": "none",
-    "sleep_cmd": "none"
+    "sleep_cmd": "none",
+    "new_tab": "key:ctrl+t",
+    "refresh": "key:ctrl+r",
+    "backspace": "key:backspace",
+    "force close": "key:alt+f4",
+    "back_home": "key:win+m",
+    "copy": "key:ctrl+c",
+    "paste": "key:ctrl+v"
 }

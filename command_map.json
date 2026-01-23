@@ -17,7 +17,7 @@
     "hello_voicecmd": "none",
     "sleep_cmd": "none",
     "new_tab": "key:ctrl+t",
-    "refresh": "key:ctrl+r",
+    "refresh": "key:ctrl+shift+r",
     "backspace": "key:backspace",
     "force close": "key:alt+f4",
     "back_home": "key:win+m",

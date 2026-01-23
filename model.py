@@ -12,7 +12,7 @@ DATASET_PATH = 'dataset'
 MODELS_PATH = 'models'
 # Parameter Audio
 SAMPLE_RATE = 44100
-DURATION = 1.0
+DURATION = 2.0
 N_MFCC = 40
 # Parameter Training
 EPOCHS = 70          # Dikurangi sedikit karena model lebih efisien

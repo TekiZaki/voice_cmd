@@ -22,5 +22,10 @@
     "force close": "key:alt+f4",
     "back_home": "key:win+m",
     "copy": "key:ctrl+c",
-    "paste": "key:ctrl+v"
+    "paste": "key:ctrl+v",
+    "enter": "key:enter",
+    "spasi": "key:space",
+    "silent": "key:ctrl+m",
+    "suara_naik": "key:fn+volumeup",
+    "suara_turun": "key:fn+volumedown"
 }

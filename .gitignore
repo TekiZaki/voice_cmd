@@ -1,2 +1,8 @@
 .agent
 extracted.md
+__pycache__
+build_data_collector.md
+main-impl.md
+rangkuman.md
+train-model-impl.md
+transform-voice-assistant-gui.md

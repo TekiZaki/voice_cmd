@@ -1,4 +1,4 @@
-# VoiceCmD: AI-Powered Voice Assistant
+# VoiceCmD: Deep Learning Powered Voice Assistant
 
 **Asisten suara berbasis Deep Learning untuk otomasi alur kerja Windows melalui kendali suara secara real-time.**
 
@@ -51,14 +51,21 @@ _Gunakan frase "Hello VoiceCmD" untuk mengaktifkan asisten, kemudian ucapkan per
 
 ## Struktur Proyek
 
+| File | Deskripsi Teknis |
+| :--- | :--- |
+| **audio_utils.py** | Modul pemrosesan sinyal digital yang bertanggung jawab untuk meningkatkan kualitas input audio. Implementasi mencakup reduksi noise berbasis algoritma stationary noise reduction, pre-emphasis untuk penguatan frekuensi tinggi guna memperjelas fitur wicara, normalisasi puncak untuk level volume yang konsisten, serta pemotongan otomatis bagian sunyi (trimming) menggunakan pustaka Librosa. |
+| **data_collector.py** | Antarmuka grafis (GUI) berbasis Tkinter yang dirancang khusus untuk akuisisi dataset audio secara sistematis. Modul ini mendukung visualisasi sinyal waktu nyata dan memungkinkan pengguna untuk memetakan rekaman suara ke dua jenis aksi: eksekusi file shortcut Windows (.lnk) atau simulasi penekanan tombol keyboard (pyautogui). Setiap rekaman akan diproses secara otomatis melalui `audio_utils` sebelum disimpan ke direktori dataset. |
+| **main.py** | Program utama yang menjalankan asisten suara dalam mode inferensi waktu nyata. Mengimplementasikan mesin status (state machine) Awake/Standby yang merespons frase pemicu "Hello VoiceCmD". Dilengkapi dengan antarmuka HUD (Heads-Up Display) futuristik yang menampilkan oscilloscope audio, log telemetri sistem, dan riwayat pengenalan perintah. Proses inferensi dilakukan secara efisien melalui threading untuk meminimalkan latensi eksekusi. |
+| **model.py** | Skrip untuk manufaktur dan pelatihan model deep learning berbasis Neural Network Konvolusional (CNN). Modul ini melakukan ekstraksi fitur kompleks yang menggabungkan MFCC (Mel-frequency cepstrum coefficients) dengan Delta dan Delta-Delta guna menangkap karakteristik temporal suara. Strategi pelatihan mencakup augmentasi data (noise injection, time shifting, pitch shifting) dan penanganan background noise untuk memastikan model tetap tangguh dalam berbagai kondisi lingkungan. |
+
 ```text
 voice_cmd/
-├── apps/               # Pintasan (.lnk) aplikasi yang akan dijalankan
-├── dataset/            # Data audio untuk pelatihan model
-├── models/             # Model AI (.h5) dan Label Encoder
-├── audio_utils.py      # Pengolahan sinyal dan peningkatan kualitas audio
-├── data_collector.py   # GUI untuk merekam dataset baru
-├── main.py             # Aplikasi utama dengan HUD Interface
-├── model.py            # Arsitektur Neural Network dan skrip pelatihan
-└── requirements.txt    # Daftar pustaka Python yang diperlukan
+├── apps/               # Pintasan (.lnk) aplikasi target
+├── dataset/            # Kumpulan sampel audio untuk setiap label perintah
+├── models/             # Artefak model terlatih (.h5) dan label encoder (.npy)
+├── audio_utils.py      # Utilitas pengolahan sinyal audio
+├── data_collector.py   # Modul akuisisi data dan konfigurasi perintah
+├── main.py             # Entry point aplikasi utama dan HUD terminal
+├── model.py            # Arsitektur model dan pipeline pelatihan AI
+└── requirements.txt    # Daftar dependensi pustaka Python
 ```

@@ -10,53 +10,56 @@ from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from audio_utils import enhance_audio
 
-# --- CONFIGURATION ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-APPS_DIR = os.path.join(BASE_DIR, "apps")
-DATASET_DIR = os.path.join(BASE_DIR, "dataset")
-MAP_FILE = os.path.join(BASE_DIR, "command_map.json")
-SAMPLE_RATE = 44100
-CHANNELS = 1
+# --- KONFIGURASI ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # Direktori aplikasi
+APPS_DIR = os.path.join(BASE_DIR, "apps")              # Direktori aplikasi shortcut
+DATASET_DIR = os.path.join(BASE_DIR, "dataset")        # Direktori dataset audio
+MAP_FILE = os.path.join(BASE_DIR, "command_map.json")  # File pemetaan perintah
+SAMPLE_RATE = 44100  # Tingkat sampling audio
+CHANNELS = 1         # Jumlah channel audio (mono)
 
-# --- COLORS & AESTHETICS ---
-BG_DARK = "#0F172A"      # Deep Navy/Slate
-BG_CARD = "#1E293B"      # Lighter Slate for cards
-BG_HIGHLIGHT = "#334155" # Highlight color
-ACCENT_BLUE = "#38BDF8"  # Neon Blue
-ACCENT_CYAN = "#22D3EE"  # Neon Cyan
-ACCENT_GREEN = "#10B981" # Success Green
-RECORD_RED = "#FB7185"   # Neon Pink/Red for recording
-TEXT_MAIN = "#F8FAFC"    # Ghost White
-TEXT_MUTED = "#94A3B8"   # Muted Blue/Gray
-BORDER_COLOR = "#334155"
+# --- WARNA & ESTETIKA UI ---
+BG_DARK = "#0F172A"       # Latar belakang gelap utama
+BG_CARD = "#1E293B"       # Latar panel/card
+BG_HIGHLIGHT = "#334155"  # Warna highlight
+ACCENT_BLUE = "#38BDF8"   # Aksen biru neon
+ACCENT_CYAN = "#22D3EE"   # Aksen cyan neon
+ACCENT_GREEN = "#10B981"  # Hijau (sukses)
+RECORD_RED = "#FB7185"    # Merah/pink neon (recording)
+TEXT_MAIN = "#F8FAFC"     # Teks utama putih
+TEXT_MUTED = "#94A3B8"    # Teks redup
+BORDER_COLOR = "#334155"  # Warna border
 
-# Ensure directories exist
+# Membuat direktori jika belum ada
 for d in [APPS_DIR, DATASET_DIR]:
     if not os.path.exists(d):
         os.makedirs(d)
 
 class AudioRecorder:
+    """Kelas untuk merekam audio dari microphone."""
     def __init__(self):
-        self.is_recording = False
-        self.frames = []
-        self._stream = None
-        self.device_id = None
-        self.waveform_data = np.zeros(200) # Higher resolution for smooth line
+        self.is_recording = False  # Status rekaman
+        self.frames = []           # Buffer frame audio
+        self._stream = None        # Stream audio
+        self.device_id = None      # ID perangkat input
+        self.waveform_data = np.zeros(200)  # Data untuk visualisasi waveform
     
     def start_recording(self, device_id):
+        """Memulai perekaman audio."""
         self.device_id = device_id
         self.frames = []
         self.is_recording = True
         
         def callback(indata, frames, time, status):
+            """Callback untuk menerima data audio dari stream."""
             if self.is_recording:
                 self.frames.append(indata.copy())
-                # Update waveform data (smoothed)
+                # Update data waveform untuk visualisasi
                 current_data = indata[:, 0]
-                # Simple downsampling for visualization
                 stride = max(1, len(current_data) // 100)
                 self.waveform_data = current_data[::stride]
 
+        # Membuka stream input audio
         self._stream = sd.InputStream(
             samplerate=SAMPLE_RATE,
             device=self.device_id,
@@ -66,6 +69,7 @@ class AudioRecorder:
         self._stream.start()
 
     def stop_recording(self, filename):
+        """Menghentikan perekaman dan menyimpan ke file WAV."""
         self.is_recording = False
         if self._stream:
             self._stream.stop()
@@ -74,16 +78,19 @@ class AudioRecorder:
         if not self.frames:
             return False
 
+        # Menggabungkan semua frame audio
         audio_data = np.concatenate(self.frames, axis=0).flatten()
         
-        # Enhancement
+        # Perbaikan kualitas audio
         try:
             audio_data = enhance_audio(audio_data, SAMPLE_RATE)
         except:
-            pass # Fallback if enhancement fails
+            pass  # Fallback jika enhancement gagal
 
+        # Konversi ke format int16 untuk WAV
         audio_data_int16 = (audio_data * 32767).astype(np.int16)
 
+        # Menyimpan ke file WAV
         with wave.open(filename, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)
@@ -93,7 +100,7 @@ class AudioRecorder:
         return True
 
 class RoundedFrame(tk.Canvas):
-    """A custom frame with rounded corners using Canvas."""
+    """Frame kustom dengan sudut membulat menggunakan Canvas."""
     def __init__(self, parent, radius=20, bg=BG_DARK, border_color=BORDER_COLOR, **kwargs):
         super().__init__(parent, bg=bg, highlightthickness=0, **kwargs)
         self.radius = radius
@@ -101,36 +108,32 @@ class RoundedFrame(tk.Canvas):
         self.bind("<Configure>", self._draw)
 
     def _draw(self, event=None):
+        """Menggambar frame dengan sudut membulat."""
         self.delete("all")
         w, h = self.winfo_width(), self.winfo_height()
         r = self.radius
         
-        # Draw background shape
-        points = [
-            r, 0, w-r, 0, w, 0, w, r, w, h-r, w, h, w-r, h, r, h, 0, h, 0, h-r, 0, r, 0, 0
-        ]
-        # More complex paths for true rounded corners
+        # Menggambar bentuk dengan sudut membulat
         self.create_rounded_rect(2, 2, w-2, h-2, r, fill=BG_CARD, outline=self.border_color, width=1)
 
     def create_rounded_rect(self, x1, y1, x2, y2, r, **kwargs):
+        """Membuat polygon dengan sudut membulat."""
         points = [
-            x1+r, y1, x2-r, y1, x2, y1, x2, y1+r, x2, y2-r, x2, y2, x2-r, y2, x1+r, y2, x1, y2, x1, y2-r, x1, y1+r, x1, y1
-        ]
-        return self.create_polygon(
             x1+r, y1, x1+r, y1, x2-r, y1, x2-r, y1, x2, y1, x2, y1+r, x2, y1+r, x2, y2-r, x2, y2-r, x2, y2, x2-r, y2, x2-r, y2, x1+r, y2, x1+r, y2, x1, y2, x1, y2-r, x1, y2-r, x1, y1+r, x1, y1+r, x1, y1,
-            smooth=True, **kwargs
-        )
+        ]
+        return self.create_polygon(*points, smooth=True, **kwargs)
 
 class VoiceCollectorGUI:
+    """Antarmuka pengguna untuk pengumpulan data suara."""
     def __init__(self, root):
         self.root = root
         self.root.title("DATA COLLECTOR v2.0 - CYBER HUD")
         self.root.geometry("1100x750")
         self.root.configure(bg=BG_DARK)
         
-        self.recorder = AudioRecorder()
-        self.pulse_val = 0
-        self.pulse_dir = 1
+        self.recorder = AudioRecorder()  # Instance perekam audio
+        self.pulse_val = 0               # Nilai untuk animasi pulse
+        self.pulse_dir = 1               # Arah animasi pulse
         
         self.setup_ui()
         self.load_devices()
@@ -138,7 +141,8 @@ class VoiceCollectorGUI:
         self.update_loop()
 
     def setup_ui(self):
-        # Top Header
+        """Membangun antarmuka pengguna."""
+        # Header Atas
         header_frame = tk.Frame(self.root, bg=BG_DARK, height=80)
         header_frame.pack(fill=tk.X, padx=30, pady=(20, 10))
         
@@ -148,15 +152,15 @@ class VoiceCollectorGUI:
         version_label = tk.Label(header_frame, text="MODULE: VOICE_CORE_V2", font=("Consolas", 10), fg=ACCENT_BLUE, bg=BG_DARK)
         version_label.pack(side=tk.LEFT, padx=20, pady=(12, 0))
 
-        # Main Split Content
+        # Frame Konten Utama
         self.content_frame = tk.Frame(self.root, bg=BG_DARK)
         self.content_frame.pack(fill=tk.BOTH, expand=True, padx=30, pady=10)
 
-        # Left Column: Controls & Waveform (65%)
+        # Kolom Kiri: Kontrol & Waveform (65%)
         self.left_col = tk.Frame(self.content_frame, bg=BG_DARK)
         self.left_col.place(relx=0, rely=0, relwidth=0.65, relheight=1)
 
-        # Right Column: System Log/Stats (35%)
+        # Kolom Kanan: Log Sistem (35%)
         self.right_col = tk.Frame(self.content_frame, bg=BG_DARK)
         self.right_col.place(relx=0.67, rely=0, relwidth=0.33, relheight=1)
 
@@ -164,7 +168,8 @@ class VoiceCollectorGUI:
         self.setup_right_col()
 
     def setup_left_col(self):
-        # Device Section
+        """Membangun kolom kiri (kontrol dan visualisasi)."""
+        # Bagian Pemilihan Perangkat
         dev_card = RoundedFrame(self.left_col, radius=15)
         dev_card.place(relx=0, rely=0, relwidth=1, height=100)
         
@@ -173,19 +178,19 @@ class VoiceCollectorGUI:
         self.device_combo = ttk.Combobox(dev_card, textvariable=self.device_var, state="readonly")
         self.device_combo.place(x=20, y=45, relwidth=0.9, height=35)
         
-        # Config Section
+        # Bagian Konfigurasi Perintah
         cfg_card = RoundedFrame(self.left_col, radius=15)
         cfg_card.place(relx=0, rely=0.15, relwidth=1, height=220)
         
         tk.Label(cfg_card, text="COMMAND CONFIGURATION", font=("Segoe UI", 9, "bold"), fg=TEXT_MUTED, bg=BG_CARD).place(x=20, y=15)
         
-        # Label Entry
+        # Input Label Perintah
         tk.Label(cfg_card, text="COMMAND LABEL", font=("Segoe UI", 8), fg=TEXT_MUTED, bg=BG_CARD).place(x=20, y=45)
         self.label_var = tk.StringVar()
         self.label_entry = tk.Entry(cfg_card, textvariable=self.label_var, bg=BG_HIGHLIGHT, fg=TEXT_MAIN, insertbackground=TEXT_MAIN, borderwidth=0)
         self.label_entry.place(x=20, y=65, relwidth=0.9, height=30)
 
-        # Shortcut Entry
+        # Input Aksi/Shortcut
         tk.Label(cfg_card, text="TARGET ACTION / SHORTCUT", font=("Segoe UI", 8), fg=TEXT_MUTED, bg=BG_CARD).place(x=20, y=105)
         self.shortcut_var = tk.StringVar()
         self.shortcut_entry = tk.Entry(cfg_card, textvariable=self.shortcut_var, bg=BG_HIGHLIGHT, fg=TEXT_MAIN, insertbackground=TEXT_MAIN, borderwidth=0)
@@ -194,12 +199,12 @@ class VoiceCollectorGUI:
         self.btn_browse = tk.Button(cfg_card, text="BROWSE", font=("Segoe UI", 8, "bold"), bg=ACCENT_BLUE, fg=BG_DARK, activebackground=ACCENT_CYAN, command=self.browse_shortcut, relief=tk.FLAT)
         self.btn_browse.place(relx=0.75, y=125, relwidth=0.2, height=30)
 
-        # Mode Selection
+        # Pilihan Mode Aksi
         self.action_type = tk.StringVar(value="app")
         tk.Radiobutton(cfg_card, text="APP (.LNK)", variable=self.action_type, value="app", bg=BG_CARD, fg=TEXT_MAIN, activebackground=BG_CARD, selectcolor=BG_DARK, command=self.update_ui_mode).place(x=20, y=170)
         tk.Radiobutton(cfg_card, text="KEYBOARD (KEY:)", variable=self.action_type, value="key", bg=BG_CARD, fg=TEXT_MAIN, activebackground=BG_CARD, selectcolor=BG_DARK, command=self.update_ui_mode).place(x=130, y=170)
 
-        # Waveform Section
+        # Bagian Visualisasi Waveform
         self.wf_container = RoundedFrame(self.left_col, radius=15)
         self.wf_container.place(relx=0, rely=0.47, relwidth=1, height=180)
         
@@ -210,7 +215,7 @@ class VoiceCollectorGUI:
         self.wf_line_glow = self.canvas.create_line(0, 55, 600, 55, fill=ACCENT_BLUE, width=4)
         self.wf_line = self.canvas.create_line(0, 55, 600, 55, fill=TEXT_MAIN, width=1.5)
 
-        # Record Button Section
+        # Bagian Tombol Rekam
         self.rec_section = RoundedFrame(self.left_col, radius=15)
         self.rec_section.place(relx=0, rely=0.74, relwidth=1, height=120)
 
@@ -222,38 +227,39 @@ class VoiceCollectorGUI:
         self.status_label.place(relx=0, rely=0.92)
 
     def setup_right_col(self):
+        """Membangun kolom kanan (log data sistem)."""
         log_card = RoundedFrame(self.right_col, radius=15)
         log_card.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         tk.Label(log_card, text="SYSTEM DATA LOG", font=("Segoe UI", 11, "bold"), fg=ACCENT_BLUE, bg=BG_CARD).place(x=20, y=20)
 
-        # Create scrollable container
+        # Container untuk scrolling
         container = tk.Frame(log_card, bg=BG_CARD)
         container.place(x=20, y=60, relwidth=0.88, relheight=0.85)
 
-        # Canvas for scrolling
+        # Canvas untuk scrolling
         self.stats_canvas = tk.Canvas(container, bg=BG_CARD, highlightthickness=0)
         scrollbar = tk.Scrollbar(container, orient="vertical", command=self.stats_canvas.yview, 
                                 bg=BG_HIGHLIGHT, troughcolor=BG_CARD, 
                                 activebackground=ACCENT_BLUE, width=8)
         
-        # Scrollable frame inside canvas
+        # Frame scrollable di dalam canvas
         self.stats_frame = tk.Frame(self.stats_canvas, bg=BG_CARD)
         
-        # Create window in canvas
+        # Membuat window di canvas
         self.stats_window = self.stats_canvas.create_window((0, 0), window=self.stats_frame, anchor="nw")
         
-        # Configure scroll
+        # Konfigurasi scroll
         self.stats_canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Pack elements
+        # Pack elemen
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.stats_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
-        # Bind configure to update scroll region
+        # Bind configure untuk update scroll region
         self.stats_frame.bind("<Configure>", lambda e: self.stats_canvas.configure(scrollregion=self.stats_canvas.bbox("all")))
         
-        # Bind mousewheel for smooth scrolling
+        # Bind mousewheel untuk smooth scrolling
         def _on_mousewheel(event):
             self.stats_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
@@ -262,15 +268,17 @@ class VoiceCollectorGUI:
         self.refresh_stats()
 
     def update_loop(self):
-        # Waveform update
+        """Loop update untuk animasi dan visualisasi."""
+        # Update waveform
         self.draw_waveform()
-        # Pulse animation for glow if recording
+        
+        # Animasi pulse saat recording
         if self.recorder.is_recording:
             self.pulse_val += 2 * self.pulse_dir
             if self.pulse_val >= 30 or self.pulse_val <= 0:
                 self.pulse_dir *= -1
             
-            # Subtle neon glow on the recording section
+            # Efek glow pada bagian recording
             glow_alpha = int(self.pulse_val)
             self.rec_section.config(highlightthickness=2, highlightbackground=RECORD_RED, highlightcolor=RECORD_RED)
             self.status_label.config(fg=RECORD_RED)
@@ -281,6 +289,7 @@ class VoiceCollectorGUI:
         self.root.after(30, self.update_loop)
 
     def draw_waveform(self):
+        """Menggambar visualisasi waveform audio."""
         w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
         mid_y = h / 2
         data = self.recorder.waveform_data
@@ -291,9 +300,10 @@ class VoiceCollectorGUI:
         step = w / (len(data) - 1)
         for i, val in enumerate(data):
             x = i * step
-            y = mid_y - (val * h * 0.9) # Amplify for visuals
+            y = mid_y - (val * h * 0.9)  # Amplifikasi untuk visual
             points.extend([x, y])
             
+        # Warna berubah saat recording
         color = RECORD_RED if self.recorder.is_recording else ACCENT_BLUE
         glow_color = "#4c1d24" if self.recorder.is_recording else "#1e3a4c"
         
@@ -303,6 +313,7 @@ class VoiceCollectorGUI:
         self.canvas.itemconfig(self.wf_line, fill=color)
 
     def load_devices(self):
+        """Memuat daftar perangkat audio input."""
         devices = sd.query_devices()
         input_devices = [f"{i}: {d['name']}" for i, d in enumerate(devices) if d['max_input_channels'] > 0]
         self.device_combo['values'] = input_devices
@@ -310,19 +321,26 @@ class VoiceCollectorGUI:
             self.device_combo.current(0)
 
     def browse_shortcut(self):
+        """Membuka dialog untuk memilih file shortcut."""
         filename = filedialog.askopenfilename(initialdir=APPS_DIR, title="Select Windows Shortcut", filetypes=(("Shortcut files", "*.lnk"), ("All files", "*.*")))
-        if filename: self.shortcut_var.set(os.path.basename(filename))
+        if filename: 
+            self.shortcut_var.set(os.path.basename(filename))
 
     def update_ui_mode(self):
+        """Memperbarui UI berdasarkan mode aksi yang dipilih."""
         if self.action_type.get() == "key":
             self.btn_browse.configure(state="disabled")
-            if not self.shortcut_var.get().startswith("key:"): self.shortcut_var.set("key:ctrl+a") 
+            if not self.shortcut_var.get().startswith("key:"): 
+                self.shortcut_var.set("key:ctrl+a") 
         else:
             self.btn_browse.configure(state="normal")
-            if self.shortcut_var.get().startswith("key:"): self.shortcut_var.set("")
+            if self.shortcut_var.get().startswith("key:"): 
+                self.shortcut_var.set("")
 
     def toggle_recording(self):
+        """Toggle perekaman (mulai/berhenti)."""
         if not self.recorder.is_recording:
+            # Memulai perekaman
             label = self.label_var.get().strip()
             shortcut = self.shortcut_var.get().strip()
             if not label or not shortcut:
@@ -340,9 +358,11 @@ class VoiceCollectorGUI:
             except Exception as e:
                 messagebox.showerror("Error", f"Link error: {e}")
         else:
+            # Menghentikan perekaman
             label = self.label_var.get().strip()
             target_dir = os.path.join(DATASET_DIR, label)
-            if not os.path.exists(target_dir): os.makedirs(target_dir)
+            if not os.path.exists(target_dir): 
+                os.makedirs(target_dir)
             
             filename = os.path.join(target_dir, f"{label}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.wav")
             if self.recorder.stop_recording(filename):
@@ -352,27 +372,34 @@ class VoiceCollectorGUI:
             self.refresh_stats()
 
     def update_timer(self):
+        """Memperbarui timer saat recording."""
         if self.recorder.is_recording:
             elapsed = int(time.time() - self.start_time)
             self.btn_record.configure(text=f"TERMINATE ({elapsed}s)")
             self.root.after(1000, self.update_timer)
 
     def load_mapping(self):
+        """Memuat pemetaan perintah dari file JSON."""
         if os.path.exists(MAP_FILE):
             try:
-                with open(MAP_FILE, 'r') as f: self.mapping = json.load(f)
-            except: self.mapping = {}
-        else: self.mapping = {}
+                with open(MAP_FILE, 'r') as f: 
+                    self.mapping = json.load(f)
+            except: 
+                self.mapping = {}
+        else: 
+            self.mapping = {}
 
     def save_mapping(self, label, shortcut):
+        """Menyimpan pemetaan perintah ke file JSON."""
         self.mapping[label] = shortcut
-        with open(MAP_FILE, 'w') as f: json.dump(self.mapping, f, indent=4)
+        with open(MAP_FILE, 'w') as f: 
+            json.dump(self.mapping, f, indent=4)
 
     def select_dataset(self, label):
-        """Auto-populates configuration fields when a dataset is clicked."""
+        """Mengisi field konfigurasi otomatis saat dataset diklik."""
         shortcut = self.mapping.get(label, "")
         
-        # Set action type first so update_ui_mode doesn't overwrite with defaults
+        # Set tipe aksi terlebih dahulu
         if shortcut.startswith("key:"):
             self.action_type.set("key")
         else:
@@ -383,6 +410,7 @@ class VoiceCollectorGUI:
         self.update_ui_mode()
 
     def refresh_stats(self):
+        """Memperbarui tampilan statistik dataset."""
         for widget in self.stats_frame.winfo_children():
             widget.destroy()
             
@@ -396,7 +424,7 @@ class VoiceCollectorGUI:
             row = tk.Frame(self.stats_frame, bg=BG_HIGHLIGHT if i % 2 == 0 else BG_CARD, pady=8, cursor="hand2")
             row.pack(fill=tk.X)
             
-            # Proper capitalization: replace underscore with space and title case
+            # Format nama untuk tampilan
             display_name = folder.replace('_', ' ').title()
             
             lbl_name = tk.Label(row, text=display_name, font=("Consolas", 10, "bold"), fg=TEXT_MAIN, bg=row['bg'])
@@ -405,37 +433,34 @@ class VoiceCollectorGUI:
             lbl_count = tk.Label(row, text=f"{count} SAMPLES", font=("Consolas", 9), fg=ACCENT_BLUE, bg=row['bg'])
             lbl_count.pack(side=tk.RIGHT, padx=15)
 
-            # Bind click to select dataset
+            # Bind klik untuk memilih dataset
             for widget in (row, lbl_name, lbl_count):
                 widget.bind("<Button-1>", lambda e, f=folder: self.select_dataset(f))
 
 if __name__ == "__main__":
     root = tk.Tk()
-    # Use modern window style if possible
-    try: root.iconbitmap(None) # Clear default icon
-    except: pass
     
-    # Custom ttk styles for combobox - IMPROVED
+    # Konfigurasi style ttk untuk combobox
     style = ttk.Style()
     style.theme_use('clam')
     
-    # Configure the combobox field
+    # Konfigurasi field combobox
     style.configure("TCombobox", 
-                    fieldbackground=BG_HIGHLIGHT,  # Background of text field
-                    background=BG_CARD,            # Background of dropdown
-                    foreground=TEXT_MAIN,          # Text color
-                    arrowcolor=ACCENT_BLUE,        # Arrow color
+                    fieldbackground=BG_HIGHLIGHT,
+                    background=BG_CARD,
+                    foreground=TEXT_MAIN,
+                    arrowcolor=ACCENT_BLUE,
                     borderwidth=1,
                     relief="flat")
     
-    # Configure the dropdown listbox
+    # Konfigurasi dropdown listbox
     style.map('TCombobox',
               fieldbackground=[('readonly', BG_HIGHLIGHT)],
               selectbackground=[('readonly', ACCENT_BLUE)],
               selectforeground=[('readonly', BG_DARK)],
               foreground=[('readonly', TEXT_MAIN)])
     
-    # Style the dropdown list itself
+    # Style untuk dropdown list
     root.option_add('*TCombobox*Listbox.background', BG_CARD)
     root.option_add('*TCombobox*Listbox.foreground', TEXT_MAIN)
     root.option_add('*TCombobox*Listbox.selectBackground', ACCENT_BLUE)

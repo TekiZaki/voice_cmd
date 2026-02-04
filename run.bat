@@ -1,1 +1,0 @@
-ag-kit status && ag-kit init %% antigravity .

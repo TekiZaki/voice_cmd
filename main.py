@@ -93,6 +93,7 @@ class VoiceAssistantCore:
         self.audio_buffer = np.zeros(int(DURATION * SAMPLE_RATE))  # Buffer audio
         self.waveform_data = np.zeros(100)  # Data untuk visualisasi waveform
         self.last_action_time = 0  # Waktu aksi terakhir (untuk cooldown)
+        self.held_keys = set()     # Menyimpan tombol yang sedang ditekan
 
     def log(self, message, type="info"):
         """Mengirim pesan log ke antrian."""
@@ -179,6 +180,27 @@ class VoiceAssistantCore:
                     pyautogui.hotkey(*keys)
                 except Exception as e: 
                     self.log(f"❌ Kesalahan Keyboard: {e}", "error")
+                return
+
+            # Jika aksi adalah perintah khusus (Internal Command)
+            if action.startswith("cmd:"):
+                cmd = action[4:].strip()
+                self.log(f"⚙️ [SYSTEM] Perintah Internal: {cmd}", "info")
+                try:
+                    if cmd == "alt_tab_start":
+                        if 'alt' not in self.held_keys:
+                            pyautogui.keyDown('alt')
+                            self.held_keys.add('alt')
+                        pyautogui.press('tab')
+                        self.log("🔀 Alt+Tab Aktif (Alt ditahan)", "success")
+                    elif cmd == "alt_tab_stop":
+                        for key in list(self.held_keys):
+                            pyautogui.keyUp(key)
+                            self.log(f"🔓 Melepas tombol: {key}", "info")
+                        self.held_keys.clear()
+                        self.log("✅ Semua tombol dilepas", "success")
+                except Exception as e:
+                    self.log(f"❌ Kesalahan Perintah: {e}", "error")
                 return
 
             # Jika aksi adalah membuka aplikasi
@@ -440,6 +462,10 @@ if __name__ == "__main__":
     
     def on_closing():
         """Handler saat aplikasi ditutup."""
+        # Lepaskan semua tombol yang masih tertahan
+        if hasattr(app.core, 'held_keys'):
+            for key in list(app.core.held_keys):
+                pyautogui.keyUp(key)
         app.core.is_running = False
         root.destroy()
     
